@@ -1,34 +1,18 @@
 package com.shuman.uladzislau;
 
-import java.awt.Color;
-import java.awt.Dimension;
-import java.awt.GridBagConstraints;
-import java.awt.GridBagLayout;
-import java.awt.Insets;
-import javax.swing.BorderFactory;
-import javax.swing.JButton;
-import javax.swing.JColorChooser;
-import javax.swing.JComponent;
-import javax.swing.JFrame;
-import javax.swing.JLabel;
-import javax.swing.JPanel;
-import javax.swing.JSlider;
-import javax.swing.JTextField;
-import javax.swing.SwingUtilities;
+import javax.swing.*;
+import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
+import java.awt.*;
 
-/**
- * Класс, который описывает саму программу
- *
- * Важная деталь реализации:
- * - у каждого слушателя есть свой метод, который берет данные для своей модели (1 модель -- 1 метод)
- * - и каждый такой метод вызывает метод, который обновляет Все модели (берет Color, переводит в RGB и далее из RGB во все остальные)
- * - все формулы по переводу из одной модели в другую описаны в классе com.shuman.uladzislau.ColorUtils
- */
 public class ColorConverterApp extends JFrame {
+
     private boolean isUpdating = false;
+
+    private float lastHue = 0;
+    private float lastSaturation = 0;
 
     // Панель для отображения текущего цвета
     private final JPanel colorPreviewPanel = new JPanel();
@@ -43,7 +27,7 @@ public class ColorConverterApp extends JFrame {
     private final JTextField yTextField = new JTextField(3);
     private final JTextField kTextField = new JTextField(3);
 
-    // Компоненты для RGB
+    // Компоненты для модели RGB
     private final JSlider rSlider = new JSlider(0, 255);
     private final JSlider gSlider = new JSlider(0, 255);
     private final JSlider bSlider = new JSlider(0, 255);
@@ -51,8 +35,8 @@ public class ColorConverterApp extends JFrame {
     private final JTextField gTextField = new JTextField(3);
     private final JTextField bTextField = new JTextField(3);
 
-    // Компоненты для HLS
-    private final JSlider hSlider = new JSlider(0, 360);
+    // Компоненты для модели HLS
+    private final JSlider hSlider = new JSlider(0, 359);
     private final JSlider lSlider = new JSlider(0, 100);
     private final JSlider sSlider = new JSlider(0, 100);
     private final JTextField hTextField = new JTextField(3);
@@ -60,7 +44,7 @@ public class ColorConverterApp extends JFrame {
     private final JTextField sTextField = new JTextField(3);
 
     public ColorConverterApp() {
-        super("Lab1 нечетный вариант (CMYK-RGB-HLS)");
+        super("Конвертер цветовых моделей (CMYK-RGB-HLS)");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLayout(new GridBagLayout());
 
@@ -106,8 +90,8 @@ public class ColorConverterApp extends JFrame {
             {new JLabel("S:"), sSlider, sTextField}
         }), gbc);
 
-        // выбор цвета
-        JButton colorChooserButton = new JButton("Выбрать цвет");
+        // Кнопка выбора цвета
+        JButton colorChooserButton = new JButton("Выбрать цвет...");
         colorChooserButton.addActionListener(e -> {
             Color selectedColor = JColorChooser.showDialog(this, "Выберите цвет", colorPreviewPanel.getBackground());
             if (selectedColor != null) {
@@ -121,7 +105,6 @@ public class ColorConverterApp extends JFrame {
 
         addListeners();
 
-        // начальный цвет
         updateAll(new Color(255, 0, 101));
 
         pack();
@@ -156,14 +139,13 @@ public class ColorConverterApp extends JFrame {
         ChangeListener sliderListener = e -> {
             if (isUpdating) return;
             JSlider source = (JSlider) e.getSource();
-            // Обновляется только тогда, когда пользователь отпустил ползунок
             if (!source.getValueIsAdjusting()) {
                 if (source == cSlider || source == mSlider || source == ySlider || source == kSlider) updateFromCmyk(true);
                 else if (source == rSlider || source == gSlider || source == bSlider) updateFromRgb(true);
                 else if (source == hSlider || source == lSlider || source == sSlider) updateFromHls(true);
             }
         };
-        // Для слайдеров
+
         cSlider.addChangeListener(sliderListener);
         mSlider.addChangeListener(sliderListener);
         ySlider.addChangeListener(sliderListener);
@@ -175,16 +157,13 @@ public class ColorConverterApp extends JFrame {
         lSlider.addChangeListener(sliderListener);
         sSlider.addChangeListener(sliderListener);
 
-        // Для текстовых полей
         addDocumentListener(cTextField, () -> updateFromCmyk(false));
         addDocumentListener(mTextField, () -> updateFromCmyk(false));
         addDocumentListener(yTextField, () -> updateFromCmyk(false));
         addDocumentListener(kTextField, () -> updateFromCmyk(false));
-
         addDocumentListener(rTextField, () -> updateFromRgb(false));
         addDocumentListener(gTextField, () -> updateFromRgb(false));
         addDocumentListener(bTextField, () -> updateFromRgb(false));
-
         addDocumentListener(hTextField, () -> updateFromHls(false));
         addDocumentListener(lTextField, () -> updateFromHls(false));
         addDocumentListener(sTextField, () -> updateFromHls(false));
@@ -198,7 +177,6 @@ public class ColorConverterApp extends JFrame {
 
             private void runAction() {
                 if (isUpdating) return;
-                // Откладываем выполнение, чтобы избежать конфликтов с EDT
                 SwingUtilities.invokeLater(action);
             }
         });
@@ -234,6 +212,9 @@ public class ColorConverterApp extends JFrame {
             float l = (fromSlider ? lSlider.getValue() : Float.parseFloat(lTextField.getText())) / 100f;
             float s = (fromSlider ? sSlider.getValue() : Float.parseFloat(sTextField.getText())) / 100f;
 
+            this.lastHue = h;
+            this.lastSaturation = s * 100;
+
             if (h < 0 || h > 360 || l < 0 || l > 1 || s < 0 || s > 1) return;
             updateAll(ColorUtils.hlsToRgb(h, l, s));
         } catch (NumberFormatException ignored) {}
@@ -250,18 +231,38 @@ public class ColorConverterApp extends JFrame {
         float[] cmyk = ColorUtils.rgbToCmyk(r, g, b);
         float[] hls = ColorUtils.rgbToHls(r, g, b);
 
+        // Обновляем RGB
         rSlider.setValue(r); rTextField.setText(String.valueOf(r));
         gSlider.setValue(g); gTextField.setText(String.valueOf(g));
         bSlider.setValue(b); bTextField.setText(String.valueOf(b));
 
+        // Обновляем CMYK
         cSlider.setValue(Math.round(cmyk[0] * 100)); cTextField.setText(String.valueOf(Math.round(cmyk[0] * 100)));
         mSlider.setValue(Math.round(cmyk[1] * 100)); mTextField.setText(String.valueOf(Math.round(cmyk[1] * 100)));
         ySlider.setValue(Math.round(cmyk[2] * 100)); yTextField.setText(String.valueOf(Math.round(cmyk[2] * 100)));
         kSlider.setValue(Math.round(cmyk[3] * 100)); kTextField.setText(String.valueOf(Math.round(cmyk[3] * 100)));
 
-        hSlider.setValue(Math.round(hls[0])); hTextField.setText(String.valueOf(Math.round(hls[0])));
-        lSlider.setValue(Math.round(hls[1] * 100)); lTextField.setText(String.valueOf(Math.round(hls[1] * 100)));
-        sSlider.setValue(Math.round(hls[2] * 100)); sTextField.setText(String.valueOf(Math.round(hls[2] * 100)));
+        float calculatedL = hls[1];
+        float calculatedS = hls[2];
+
+        lSlider.setValue(Math.round(calculatedL * 100));
+        lTextField.setText(String.valueOf(Math.round(calculatedL * 100)));
+
+        if (calculatedL == 0.0f || calculatedL == 1.0f || calculatedS == 0.0f) {
+            hSlider.setValue(Math.round(this.lastHue));
+            hTextField.setText(String.valueOf(Math.round(this.lastHue)));
+            sSlider.setValue(Math.round(this.lastSaturation));
+            sTextField.setText(String.valueOf(Math.round(this.lastSaturation)));
+        } else {
+            float calculatedH = hls[0];
+            hSlider.setValue(Math.round(calculatedH));
+            hTextField.setText(String.valueOf(Math.round(calculatedH)));
+            sSlider.setValue(Math.round(calculatedS * 100));
+            sTextField.setText(String.valueOf(Math.round(calculatedS * 100)));
+
+            this.lastHue = calculatedH;
+            this.lastSaturation = calculatedS * 100;
+        }
 
         isUpdating = false;
     }
