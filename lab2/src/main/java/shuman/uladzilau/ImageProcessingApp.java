@@ -18,10 +18,8 @@ import java.util.Arrays;
  * 1. Реализовать методы повышения контраста:
  *    - Линейное контрастирование.
  *    - Эквализация (выравнивание) гистограммы для полутоновых и цветных изображений (в RGB и HSV).
- * 2. Реализовать высокочастотный фильтр для увеличения резкости.
+ * 2. Реализовать фильтр для увеличения резкости.
  * 3. Создать GUI на Java Swing для демонстрации работы.
- *
- * Все алгоритмы реализованы в строгом соответствии с предоставленными лекциями.
  */
 public class ImageProcessingApp extends JFrame {
 
@@ -327,6 +325,7 @@ public class ImageProcessingApp extends JFrame {
         // Здесь мы их скопируем.
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
+                // пиксели на границе, к ним нельзя применить окно 3 на 3
                 if (y == 0 || y == height - 1 || x == 0 || x == width - 1) {
                     result.setRGB(x, y, source.getRGB(x, y)); // Копируем пиксели на границе
                     continue;
@@ -334,12 +333,12 @@ public class ImageProcessingApp extends JFrame {
 
                 float sumR = 0, sumG = 0, sumB = 0;
 
-                // Операция свертки
+                // смотрим на квадрат
                 for (int ky = -1; ky <= 1; ky++) {
                     for (int kx = -1; kx <= 1; kx++) {
                         Color pixelColor = new Color(source.getRGB(x + kx, y + ky));
                         float kernelVal = kernel[ky + 1][kx + 1];
-                        
+
                         sumR += pixelColor.getRed() * kernelVal;
                         sumG += pixelColor.getGreen() * kernelVal;
                         sumB += pixelColor.getBlue() * kernelVal;
