@@ -45,10 +45,10 @@ public class ImageProcessingApp extends JFrame {
 
         // Панель управления с кнопками
         JPanel controlPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 10));
-        
+
         JButton linearContrastButton = new JButton("Линейное контрастирование");
         linearContrastButton.addActionListener(this::onLinearContrast);
-        
+
         JButton equalizeRgbButton = new JButton("Эквализация (RGB)");
         equalizeRgbButton.addActionListener(this::onEqualizeRgb);
 
@@ -118,33 +118,33 @@ public class ImageProcessingApp extends JFrame {
     }
 
     private void onLinearContrast(ActionEvent e) {
-      if (processedImage == null) {
-        return;
-      }
+        if (processedImage == null) {
+            return;
+        }
         processedImage = applyLinearContrasting(processedImage);
         processedImagePanel.setImage(processedImage);
     }
 
     private void onEqualizeRgb(ActionEvent e) {
-      if (processedImage == null) {
-        return;
-      }
+        if (processedImage == null) {
+            return;
+        }
         processedImage = applyHistogramEqualizationRGB(processedImage);
         processedImagePanel.setImage(processedImage);
     }
-    
+
     private void onEqualizeHsv(ActionEvent e) {
-      if (processedImage == null) {
-        return;
-      }
+        if (processedImage == null) {
+            return;
+        }
         processedImage = applyHistogramEqualizationHSV(processedImage);
         processedImagePanel.setImage(processedImage);
     }
 
     private void onSharpen(ActionEvent e) {
-      if (processedImage == null) {
-        return;
-      }
+        if (processedImage == null) {
+            return;
+        }
         processedImage = applySharpenFilter(processedImage);
         processedImagePanel.setImage(processedImage);
     }
@@ -175,24 +175,24 @@ public class ImageProcessingApp extends JFrame {
                 int g = color.getGreen();
                 int b = color.getBlue();
 
-              if (r < rMinMax[0]) {
-                rMinMax[0] = r;
-              }
-              if (r > rMinMax[1]) {
-                rMinMax[1] = r;
-              }
-              if (g < gMinMax[0]) {
-                gMinMax[0] = g;
-              }
-              if (g > gMinMax[1]) {
-                gMinMax[1] = g;
-              }
-              if (b < bMinMax[0]) {
-                bMinMax[0] = b;
-              }
-              if (b > bMinMax[1]) {
-                bMinMax[1] = b;
-              }
+                if (r < rMinMax[0]) {
+                    rMinMax[0] = r;
+                }
+                if (r > rMinMax[1]) {
+                    rMinMax[1] = r;
+                }
+                if (g < gMinMax[0]) {
+                    gMinMax[0] = g;
+                }
+                if (g > gMinMax[1]) {
+                    gMinMax[1] = g;
+                }
+                if (b < bMinMax[0]) {
+                    bMinMax[0] = b;
+                }
+                if (b > bMinMax[1]) {
+                    bMinMax[1] = b;
+                }
             }
         }
 
@@ -428,6 +428,12 @@ class ImagePanel extends JPanel {
     private BufferedImage image;
     private String title;
 
+    // Данные для гистограммы
+    private int[] rBins = new int[256];
+    private int[] gBins = new int[256];
+    private int[] bBins = new int[256];
+    private int maxHistValue = 0;
+
     public ImagePanel(String title) {
         this.title = title;
         setPreferredSize(new Dimension(400, 400));
@@ -436,7 +442,40 @@ class ImagePanel extends JPanel {
 
     public void setImage(BufferedImage image) {
         this.image = image;
+        calculateHistogram(); // Пересчитываем гистограмму при установке нового изображения
         repaint();
+    }
+
+    private void calculateHistogram() {
+        if (image == null) return;
+
+        Arrays.fill(rBins, 0);
+        Arrays.fill(gBins, 0);
+        Arrays.fill(bBins, 0);
+        maxHistValue = 0;
+
+        int w = image.getWidth();
+        int h = image.getHeight();
+
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+                int rgb = image.getRGB(x, y);
+                int r = (rgb >> 16) & 0xFF;
+                int g = (rgb >> 8) & 0xFF;
+                int b = rgb & 0xFF;
+
+                rBins[r]++;
+                gBins[g]++;
+                bBins[b]++;
+            }
+        }
+
+        // Находим максимум для масштабирования
+        for (int i = 0; i < 256; i++) {
+            if (rBins[i] > maxHistValue) maxHistValue = rBins[i];
+            if (gBins[i] > maxHistValue) maxHistValue = gBins[i];
+            if (bBins[i] > maxHistValue) maxHistValue = bBins[i];
+        }
     }
 
     @Override
@@ -456,6 +495,36 @@ class ImagePanel extends JPanel {
             int y = (panelHeight - newImgHeight) / 2;
 
             g.drawImage(image, x, y, newImgWidth, newImgHeight, null);
+
+            // --- Отрисовка гистограммы ---
+            if (maxHistValue > 0) {
+                int histWidth = 256;
+                int histHeight = 80;
+                int histX = (panelWidth - histWidth) / 2;
+                int histY = panelHeight - histHeight - 10;
+
+                // Полупрозрачный фон
+                g.setColor(new Color(255, 255, 255, 180));
+                g.fillRect(histX, histY, histWidth, histHeight);
+                g.setColor(Color.BLACK);
+                g.drawRect(histX, histY, histWidth, histHeight);
+
+                for (int i = 0; i < 256; i++) {
+                    int rH = (int) (((double) rBins[i] / maxHistValue) * histHeight);
+                    int gH = (int) (((double) gBins[i] / maxHistValue) * histHeight);
+                    int bH = (int) (((double) bBins[i] / maxHistValue) * histHeight);
+
+                    // Рисуем линии. Используем альфа-канал, чтобы цвета смешивались
+                    g.setColor(new Color(255, 0, 0, 128));
+                    g.drawLine(histX + i, histY + histHeight, histX + i, histY + histHeight - rH);
+
+                    g.setColor(new Color(0, 255, 0, 128));
+                    g.drawLine(histX + i, histY + histHeight, histX + i, histY + histHeight - gH);
+
+                    g.setColor(new Color(0, 0, 255, 128));
+                    g.drawLine(histX + i, histY + histHeight, histX + i, histY + histHeight - bH);
+                }
+            }
         }
         g.setColor(Color.BLACK);
         g.setFont(new Font("Arial", Font.BOLD, 14));
