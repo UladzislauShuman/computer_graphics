@@ -23,6 +23,8 @@ import java.util.Arrays;
  */
 public class ImageProcessingApp extends JFrame {
 
+    public static final String TEST_IMAGES_SOURCE = "./test_images";
+
     private BufferedImage originalImage;
     private BufferedImage processedImage;
 
@@ -90,7 +92,7 @@ public class ImageProcessingApp extends JFrame {
 
     private void onOpenFile(ActionEvent e) {
         JFileChooser fileChooser = new JFileChooser();
-        fileChooser.setCurrentDirectory(new File("./src/main/resources/test_images"));
+        fileChooser.setCurrentDirectory(new File(TEST_IMAGES_SOURCE));
         FileNameExtensionFilter filter = new FileNameExtensionFilter("Изображения (jpg, png, bmp)", "jpg", "jpeg", "png", "bmp");
         fileChooser.setFileFilter(filter);
 
